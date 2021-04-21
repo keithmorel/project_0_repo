@@ -4,11 +4,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.revature.dto.MessageDTO;
+import com.revature.exception.AddAccountException;
 import com.revature.exceptions.AccountNotFoundException;
 import com.revature.exceptions.AddClientException;
 import com.revature.exceptions.BadParameterException;
 import com.revature.exceptions.ClientNotFoundException;
 import com.revature.exceptions.DatabaseException;
+import com.revature.exceptions.NotClientsAccountException;
+import com.revature.exceptions.UpdateAccountException;
 import com.revature.exceptions.UpdateClientException;
 
 import io.javalin.Javalin;
@@ -57,6 +60,24 @@ public class ExceptionController implements Controller {
 		ctx.json(new MessageDTO(e.getMessage()));
 	};
 	
+	private ExceptionHandler<NotClientsAccountException> NotClientsAccountExceptionHandler = (e, ctx) -> {
+		logger.warn("Client does not own that account. Exception message is \n" + e.getMessage());
+		ctx.status(400);
+		ctx.json(new MessageDTO(e.getMessage()));
+	};
+	
+	private ExceptionHandler<AddAccountException> AddAccountExceptionHandler = (e, ctx) -> {
+		logger.warn("Failed to add account. Exception message is \n" + e.getMessage());
+		ctx.status(400);
+		ctx.json(new MessageDTO(e.getMessage()));
+	};
+	
+	private ExceptionHandler<UpdateAccountException> UpdateAccountExceptionHandler = (e, ctx) -> {
+		logger.warn("Failed to update account. Exception message is \n" + e.getMessage());
+		ctx.status(400);
+		ctx.json(new MessageDTO(e.getMessage()));
+	};
+	
 	@Override
 	public void mapEndpoints(Javalin app) {
 		app.exception(BadParameterException.class, badParameterExceptionHandler);
@@ -65,6 +86,9 @@ public class ExceptionController implements Controller {
 		app.exception(ClientNotFoundException.class, clientNotFoundExceptionHandler);
 		app.exception(AccountNotFoundException.class, accountNotFoundExceptionHandler);
 		app.exception(UpdateClientException.class, UpdateClientExceptionHandler);
+		app.exception(NotClientsAccountException.class, NotClientsAccountExceptionHandler);
+		app.exception(AddAccountException.class, AddAccountExceptionHandler);
+		app.exception(UpdateAccountException.class, UpdateAccountExceptionHandler);
 	}
 
 }

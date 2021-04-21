@@ -57,9 +57,9 @@ public class ClientService {
 			this.clientRepository.setConnection(connection); // pass the connection into the DAO
 			connection.setAutoCommit(false); // Turn off autocommit so we have control over commit v. not committing
 			
-			Client accountList = clientRepository.addClient(clientDTO);
+			Client client = clientRepository.addClient(clientDTO);
 			connection.commit(); // This is when changes will actually be persisted
-			return accountList;
+			return client;
 			
 		} catch (SQLException e) {
 			throw new DatabaseException("Something went wrong when trying to get a connection. "

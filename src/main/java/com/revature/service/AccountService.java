@@ -6,9 +6,12 @@ import java.util.List;
 
 import com.revature.dao.AccountRepository;
 import com.revature.dto.AccountDTO;
+import com.revature.exception.AddAccountException;
 import com.revature.exceptions.AccountNotFoundException;
 import com.revature.exceptions.BadParameterException;
 import com.revature.exceptions.DatabaseException;
+import com.revature.exceptions.NotClientsAccountException;
+import com.revature.exceptions.UpdateAccountException;
 import com.revature.model.Account;
 import com.revature.util.ConnectionUtil;
 
@@ -132,7 +135,7 @@ public class AccountService {
 		
 	}
 
-	public Account getAccountById(String clientStringId, String accountStringId) throws DatabaseException, AccountNotFoundException, BadParameterException {
+	public Account getAccountById(String clientStringId, String accountStringId) throws DatabaseException, AccountNotFoundException, BadParameterException, NotClientsAccountException {
 
 		try {
 			Connection connection = ConnectionUtil.getConnection(); // Have control over a connection object here
@@ -142,6 +145,11 @@ public class AccountService {
 			try {
 				int clientId = Integer.parseInt(clientStringId);
 				int accountId = Integer.parseInt(accountStringId);
+				
+				int clientIdOfAccount = accountRepository.whosAccount(accountId);
+				if (clientIdOfAccount != clientId) {
+					throw new NotClientsAccountException("That account belongs to client with id: " + clientIdOfAccount);
+				}
 				
 				Account account = accountRepository.getAccountById(clientId, accountId);
 				
@@ -158,7 +166,12 @@ public class AccountService {
 		
 	}
 	
-	public Account addAccount(String stringId, AccountDTO accDTO) throws BadParameterException, DatabaseException {
+	public Account addAccount(String stringId, AccountDTO accDTO) throws BadParameterException, DatabaseException, AddAccountException {
+		
+		if (accDTO.getAccountType().trim().equals("")) {
+			throw new AddAccountException("User tried to add an account without an account type.");
+		}
+		
 		try {
 			Connection connection = ConnectionUtil.getConnection();
 			this.accountRepository.setConnection(connection);
@@ -182,8 +195,12 @@ public class AccountService {
 
 	}
 
-	public Account updateAccount(String clientStringId, String accountStringId, AccountDTO accDTO) throws AccountNotFoundException, DatabaseException, BadParameterException {
+	public Account updateAccount(String clientStringId, String accountStringId, AccountDTO accDTO) throws AccountNotFoundException, DatabaseException, BadParameterException, NotClientsAccountException, UpdateAccountException {
 
+		if (accDTO.getAccountType().trim().equals("")) {
+			throw new UpdateAccountException("User tried to update an account without an account type.");
+		}
+		
 		try {
 			Connection connection = ConnectionUtil.getConnection(); // Have control over a connection object here
 			this.accountRepository.setConnection(connection); // pass the connection into the DAO
@@ -192,6 +209,11 @@ public class AccountService {
 			try {
 				int clientId = Integer.parseInt(clientStringId);
 				int accountId = Integer.parseInt(accountStringId);
+				
+				int clientIdOfAccount = accountRepository.whosAccount(accountId);
+				if (clientIdOfAccount != clientId) {
+					throw new NotClientsAccountException("That account belongs to client with id: " + clientIdOfAccount);
+				}
 				
 				Account account = accountRepository.updateAccount(clientId, accountId, accDTO);
 				
@@ -206,10 +228,9 @@ public class AccountService {
 					+ "Exception message: " + e.getMessage());
 		}
 		
-		
 	}
 
-	public boolean deleteAccount(String stringClientId, String stringAccountId) throws AccountNotFoundException, DatabaseException {
+	public boolean deleteAccount(String clientStringId, String accountStringId) throws DatabaseException, NotClientsAccountException, BadParameterException, AccountNotFoundException {
 
 		try {
 			
@@ -217,11 +238,21 @@ public class AccountService {
 			accountRepository.setConnection(connection);
 			connection.setAutoCommit(false);
 			
-			int clientId = Integer.parseInt(stringClientId);
-			int accountId = Integer.parseInt(stringAccountId);
-			boolean didUpdate = accountRepository.deleteAccount(clientId, accountId);
-			connection.commit();
-			return didUpdate;
+			try {
+				int clientId = Integer.parseInt(clientStringId);
+				int accountId = Integer.parseInt(accountStringId);
+				
+				int clientIdOfAccount = accountRepository.whosAccount(accountId);
+				if (clientIdOfAccount != clientId) {
+					throw new NotClientsAccountException("That account belongs to client with id: " + clientIdOfAccount);
+				}
+				
+				boolean didUpdate = accountRepository.deleteAccount(clientId, accountId);
+				connection.commit();
+				return didUpdate;
+			} catch (NumberFormatException e) {
+				throw new BadParameterException("Client id and Account id must be ints. User provided " + clientStringId + " and " + accountStringId);
+			}
 			
 		} catch (SQLException e) {
 			throw new DatabaseException("Something went wrong when trying to get a connection. "

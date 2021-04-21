@@ -262,4 +262,27 @@ public class AccountRepository {
 		
 	}
 	
+	public int whosAccount(int accountId) throws AccountNotFoundException, DatabaseException {
+
+		try (Connection connection = ConnectionUtil.getConnection()) {
+			String sql = "SELECT * FROM accounts WHERE id = ?";
+			
+			PreparedStatement pstmt = connection.prepareStatement(sql);
+			pstmt.setInt(1,  accountId);
+			
+			ResultSet rs = pstmt.executeQuery();
+			
+			if (rs.next()) {
+				return rs.getInt("client_id");
+			} else {
+				throw new AccountNotFoundException("Couldn't find account with id " + accountId);
+			}
+			
+		} catch (SQLException e) {
+			throw new DatabaseException("Something went wrong when trying to get a connection. "
+					+ "Exception message: " + e.getMessage());
+		}
+		
+	}
+	
 }

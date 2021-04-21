@@ -18,9 +18,12 @@ import org.mockito.MockedStatic;
 
 import com.revature.dao.AccountRepository;
 import com.revature.dto.AccountDTO;
+import com.revature.exception.AddAccountException;
 import com.revature.exceptions.AccountNotFoundException;
 import com.revature.exceptions.BadParameterException;
 import com.revature.exceptions.DatabaseException;
+import com.revature.exceptions.NotClientsAccountException;
+import com.revature.exceptions.UpdateAccountException;
 import com.revature.model.Account;
 import com.revature.util.ConnectionUtil;
 
@@ -45,28 +48,31 @@ public class AccountServiceTest {
 		List<Account> accountList2 = new ArrayList<>();
 		accountList2.add(new Account(1, "Savings", 1000));
 		when(mockAccountRepository.getAllAccountsOfClientLessThan(eq(1), eq(10000)))
-		.thenReturn(accountList2);
+			.thenReturn(accountList2);
 		
 		List<Account> accountList3 = new ArrayList<>();
 		accountList3.add(new Account(2, "Checking", 15000));
 		when(mockAccountRepository.getAllAccountsOfClientGreaterThan(eq(1), eq(5000)))
-		.thenReturn(accountList3);
+			.thenReturn(accountList3);
 
 		List<Account> accountList4 = new ArrayList<>();
 		when(mockAccountRepository.getAllAccountsOfClient(eq(1), eq(5000), eq(10000)))
-		.thenReturn(accountList4);
+			.thenReturn(accountList4);
 		
-		when(mockAccountRepository.getAccountById(eq(1), eq(2)))
-			.thenReturn(new Account(2, "Savings", 10000));
+		when(mockAccountRepository.getAccountById(eq(1), eq(1)))
+			.thenReturn(new Account(1, "Savings", 10000));
 		
 		when(mockAccountRepository.addAccount(eq(1), eq(new AccountDTO("Savings", 10000))))
-			.thenReturn(new Account(2, "Savings", 10000));
+			.thenReturn(new Account(1, "Savings", 10000));
 		
-		when(mockAccountRepository.updateAccount(eq(1), eq(2), eq(new AccountDTO("Checking", 99999))))
-			.thenReturn(new Account(2, "Checking", 99999));
+		when(mockAccountRepository.updateAccount(eq(1), eq(1), eq(new AccountDTO("Checking", 99999))))
+			.thenReturn(new Account(1, "Checking", 99999));
 		
-		when(mockAccountRepository.deleteAccount(eq(1), eq(2)))
+		when(mockAccountRepository.deleteAccount(eq(1), eq(1)))
 			.thenReturn(true);
+		
+		when(mockAccountRepository.whosAccount(eq(1)))
+			.thenReturn(1);
 	}
 	
 	@Before
@@ -131,51 +137,51 @@ public class AccountServiceTest {
 	}
 	
 	@Test 
-	public void test_happyPath_getAccountById() throws DatabaseException, AccountNotFoundException, BadParameterException {
+	public void test_happyPath_getAccountById() throws DatabaseException, AccountNotFoundException, BadParameterException, NotClientsAccountException {
 	
 		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
 			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
 			
-			Account actual = accountService.getAccountById("1", "2");
-			Account expected = new Account(2, "Savings", 10000);
+			Account actual = accountService.getAccountById("1", "1");
+			Account expected = new Account(1, "Savings", 10000);
 			assertEquals(expected, actual);
 		}
 		
 	}
 	
 	@Test 
-	public void test_happyPath_addAccount() throws DatabaseException, BadParameterException {
+	public void test_happyPath_addAccount() throws DatabaseException, BadParameterException, AddAccountException {
 	
 		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
 			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
 			
 			Account actual = accountService.addAccount("1", new AccountDTO("Savings", 10000));
-			Account expected = new Account(2, "Savings", 10000);
+			Account expected = new Account(1, "Savings", 10000);
 			assertEquals(expected, actual);
 		}
 		
 	}
 	
 	@Test 
-	public void test_happyPath_updateAccount() throws DatabaseException, AccountNotFoundException, BadParameterException {
+	public void test_happyPath_updateAccount() throws DatabaseException, AccountNotFoundException, BadParameterException, NotClientsAccountException, UpdateAccountException {
 	
 		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
 			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
 			
-			Account actual = accountService.updateAccount("1", "2", new AccountDTO("Checking", 99999));
-			Account expected = new Account(2, "Checking", 99999);
+			Account actual = accountService.updateAccount("1", "1", new AccountDTO("Checking", 99999));
+			Account expected = new Account(1, "Checking", 99999);
 			assertEquals(expected, actual);
 		}
 		
 	}
 	
 	@Test 
-	public void test_happyPath_deleteAccount() throws AccountNotFoundException, DatabaseException {
+	public void test_happyPath_deleteAccount() throws AccountNotFoundException, DatabaseException, NotClientsAccountException, BadParameterException {
 	
 		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
 			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
 			
-			boolean actual = accountService.deleteAccount("1", "2");
+			boolean actual = accountService.deleteAccount("1", "1");
 			boolean expected = true;
 			assertEquals(expected, actual);
 		}
@@ -289,6 +295,357 @@ public class AccountServiceTest {
 				fail("BadParameterException was not thrown");
 			} catch (BadParameterException e) {
 				assertEquals(e.getMessage(), "Account id, amount greater than and amount less than values, must all be ints. User provided \nid: 100 amount greater than: abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientId_nonIntGeaterThanStr_nonIntLessThanStr_getAllAccountsOfClientOverloaded() throws DatabaseException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAllAccountsOfClient("abc", "abc", "abc");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Account id, amount greater than and amount less than values, must all be ints. User provided \nid: abc"
+						+ " amount greater than: abc amount less than: abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientId_nonIntGeaterThanStr_nonIntLessThanStr_getAllAccountsOfClientOverloaded() throws DatabaseException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAllAccountsOfClient("1", "abc", "abc");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Account id, amount greater than and amount less than values, must all be ints. User provided \nid: 1"
+						+ " amount greater than: abc amount less than: abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientId_intGeaterThanStr_nonIntLessThanStr_getAllAccountsOfClientOverloaded() throws DatabaseException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAllAccountsOfClient("1", "1", "abc");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Account id, amount greater than and amount less than values, must all be ints. User provided \nid: 1"
+						+ " amount greater than: 1 amount less than: abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientId_nonIntGeaterThanStr_intLessThanStr_getAllAccountsOfClientOverloaded() throws DatabaseException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAllAccountsOfClient("1", "abc", "1");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Account id, amount greater than and amount less than values, must all be ints. User provided \nid: 1"
+						+ " amount greater than: abc amount less than: 1");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientId_intGeaterThanStr_nonIntLessThanStr_getAllAccountsOfClientOverloaded() throws DatabaseException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAllAccountsOfClient("abc", "1", "abc");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Account id, amount greater than and amount less than values, must all be ints. User provided \nid: abc"
+						+ " amount greater than: 1 amount less than: abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientId_intGeaterThanStr_intLessThanStr_getAllAccountsOfClientOverloaded() throws DatabaseException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAllAccountsOfClient("abc", "1", "1");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Account id, amount greater than and amount less than values, must all be ints. User provided \nid: abc"
+						+ " amount greater than: 1 amount less than: 1");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientId_nonIntGeaterThanStr_intLessThanStr_getAllAccountsOfClientOverloaded() throws DatabaseException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAllAccountsOfClient("abc", "abc", "1");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Account id, amount greater than and amount less than values, must all be ints. User provided \nid: abc"
+						+ " amount greater than: abc amount less than: 1");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientId_nonIntAccountId_getAccountById() throws DatabaseException, AccountNotFoundException, NotClientsAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAccountById("abc", "abc");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided abc and abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientId_intAccountId_getAccountById() throws DatabaseException, AccountNotFoundException, NotClientsAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAccountById("abc", "1");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided abc and 1");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientId_nonIntAccountId_getAccountById() throws DatabaseException, AccountNotFoundException, NotClientsAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.getAccountById("1", "abc");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided 1 and abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientId_validDTO_addAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException, AddAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.addAccount("abc", new AccountDTO("Savings", 1000));
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Account id must be an int. User provided abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientId_invalidDTO_noSpaces_addAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException, AddAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.addAccount("1", new AccountDTO("", 1000));
+				fail("AddAccountException was not thrown");
+			} catch (AddAccountException e) {
+				assertEquals(e.getMessage(), "User tried to add an account without an account type.");
+			} catch (BadParameterException e) {
+				fail("AddAccountException was not thrown");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientId_invalidDTO_spaces_addAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException, AddAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.addAccount("1", new AccountDTO("             ", 1000));
+				fail("AddAccountException was not thrown");
+			} catch (AddAccountException e) {
+				assertEquals(e.getMessage(), "User tried to add an account without an account type.");
+			} catch (BadParameterException e) {
+				fail("AddAccountException was not thrown");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientStr_nonIntAccountStr_updateAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException, UpdateAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.updateAccount("abc", "abc", new AccountDTO("Savings", 1000));
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided abc and abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientStr_nonIntAccountStr_updateAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException, UpdateAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.updateAccount("1", "abc", new AccountDTO("Savings", 1000));
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided 1 and abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientStr_intAccountStr_updateAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException, UpdateAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.updateAccount("abc", "1", new AccountDTO("Savings", 1000));
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided abc and 1");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientId_intAccountId_invalidDTO_noSpaces_updateAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException, UpdateAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.updateAccount("1", "1", new AccountDTO("", 1000));
+				fail("AddAccountException was not thrown");
+			} catch (UpdateAccountException e) {
+				assertEquals(e.getMessage(), "User tried to update an account without an account type.");
+			} catch (BadParameterException e) {
+				fail("AddAccountException was not thrown");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientId_intAccountId_invalidDTO_spaces_updateAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException, UpdateAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.updateAccount("1", "1", new AccountDTO("             ", 1000));
+				fail("AddAccountException was not thrown");
+			} catch (UpdateAccountException e) {
+				assertEquals(e.getMessage(), "User tried to update an account without an account type.");
+			} catch (BadParameterException e) {
+				fail("AddAccountException was not thrown");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientStr_nonIntAccountStr_deleteAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.deleteAccount("abc", "abc");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided abc and abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_intClientStr_nonIntAccountStr_deleteAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.deleteAccount("1", "abc");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided 1 and abc");
+			}
+			
+		}
+	}
+	
+	@Test
+	public void test_nonIntClientStr_intAccountStr_deleteAccount() throws DatabaseException, AccountNotFoundException, NotClientsAccountException {
+		
+		try(MockedStatic<ConnectionUtil> mockedConnectionUtil = mockStatic(ConnectionUtil.class)) {
+			mockedConnectionUtil.when(ConnectionUtil::getConnection).thenReturn(mockConnection);
+			
+			try {
+				accountService.deleteAccount("abc", "1");
+				fail("BadParameterException was not thrown");
+			} catch (BadParameterException e) {
+				assertEquals(e.getMessage(), "Client id and Account id must be ints. User provided abc and 1");
 			}
 			
 		}

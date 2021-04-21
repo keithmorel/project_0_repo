@@ -91,6 +91,9 @@ public class AccountController implements Controller {
 
 		String clientId = ctx.pathParam("clientid");
 		String accountId = ctx.pathParam("accountid");
+		
+		accountService.getAccountById(clientId, accountId); // Check if client exists
+		
 		boolean didDelete = accountService.deleteAccount(clientId, accountId);
 		
 		MessageDTO message = new MessageDTO();
